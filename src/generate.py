@@ -165,15 +165,17 @@ def _generate_machines(conn: sqlite3.Connection, rng: np.random.Generator,
     return df
 
 
-def _generate_accounts(rng: np.random.Generator, n_accounts: int) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
+def _generate_accounts(
+    rng: np.random.Generator, n_accounts: int, archetype_mix: dict
+) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
     window_days = (SIMULATION_END - SIMULATION_START).days
     # Accelerating signups (PRD §8): rng.power skews samples toward 1 (late window).
     signup_frac = rng.power(SIGNUP_GROWTH_POWER, size=n_accounts)
     signup_offsets = (signup_frac * window_days).astype(int)
     signup_dates = [SIMULATION_START + dt.timedelta(days=int(o)) for o in signup_offsets]
 
-    archetype_keys = list(ARCHETYPE_MIX_AT_SIGNUP.keys())
-    archetype_probs = list(ARCHETYPE_MIX_AT_SIGNUP.values())
+    archetype_keys = list(archetype_mix.keys())
+    archetype_probs = list(archetype_mix.values())
     signup_archetype = rng.choice(archetype_keys, size=n_accounts, p=archetype_probs)
 
     accounts = pd.DataFrame({
@@ -187,7 +189,10 @@ def _generate_accounts(rng: np.random.Generator, n_accounts: int) -> tuple[pd.Da
     return accounts, ground_truth, signup_archetype
 
 
-def _simulate_trajectories(rng: np.random.Generator, signup_archetype: np.ndarray, signup_dates: list) -> list:
+def _simulate_trajectories(
+    rng: np.random.Generator, signup_archetype: np.ndarray, signup_dates: list,
+    forward_p: float, backward_p: float, churn_p: float,
+) -> list:
     """For each account, walk month by month from signup to SIMULATION_END.
     Returns a list (per account) of (month_start_date, true_archetype_or_None)
     tuples; None means churned (no further activity generated)."""
@@ -197,14 +202,14 @@ def _simulate_trajectories(rng: np.random.Generator, signup_archetype: np.ndarra
         cursor = signup
         months = []
         while cursor < SIMULATION_END:
-            if rng.random() < CHURN_PROBABILITY_MONTHLY:
+            if rng.random() < churn_p:
                 break
             months.append((cursor, current))
             forward_edges = MIGRATION_GRAPH.get(current, [])
             r = rng.random()
-            if forward_edges and r < MIGRATION_FORWARD_MONTHLY:
+            if forward_edges and r < forward_p:
                 current = forward_edges[rng.integers(0, len(forward_edges))]
-            elif r < MIGRATION_FORWARD_MONTHLY + MIGRATION_BACKWARD_MONTHLY:
+            elif r < forward_p + backward_p:
                 backward_candidates = [k for k, v in MIGRATION_GRAPH.items() if current in v]
                 if backward_candidates:
                     current = backward_candidates[rng.integers(0, len(backward_candidates))]
@@ -340,21 +345,36 @@ def _generate_rentals_and_deposits(
     return rentals, deposits, account_auto_reload
 
 
-def generate_dataset(n_accounts: int = N_ACCOUNTS, seed: int = RANDOM_SEED) -> dict:
+def generate_dataset(
+    n_accounts: int = N_ACCOUNTS,
+    seed: int = RANDOM_SEED,
+    archetype_mix: dict | None = None,
+    forward_p: float | None = None,
+    backward_p: float | None = None,
+    churn_p: float | None = None,
+    db_path: str = DB_PATH,
+) -> dict:
     """Generate the full four-archetype synthetic dataset, write it to
-    SQLite, and return a benchmark report."""
+    SQLite, and return a benchmark report. Overrides (V4 sliders, S8) fall
+    back to the approved config/generator.py defaults when None — the
+    defaults are never silently changed, only the in-memory run."""
+    archetype_mix = archetype_mix if archetype_mix is not None else ARCHETYPE_MIX_AT_SIGNUP
+    forward_p = forward_p if forward_p is not None else MIGRATION_FORWARD_MONTHLY
+    backward_p = backward_p if backward_p is not None else MIGRATION_BACKWARD_MONTHLY
+    churn_p = churn_p if churn_p is not None else CHURN_PROBABILITY_MONTHLY
+
     rng = np.random.default_rng(seed)
-    migrate(DB_PATH)
-    conn = sqlite3.connect(DB_PATH)
+    migrate(db_path)
+    conn = sqlite3.connect(db_path)
 
     t0 = time.perf_counter()
 
     templates = _write_templates(conn)
     machines = _generate_machines(conn, rng)
-    accounts, ground_truth, signup_archetype = _generate_accounts(rng, n_accounts)
+    accounts, ground_truth, signup_archetype = _generate_accounts(rng, n_accounts, archetype_mix)
     signup_dates = [dt.date.fromisoformat(d) for d in accounts["signup_date"]]
 
-    trajectories = _simulate_trajectories(rng, signup_archetype, signup_dates)
+    trajectories = _simulate_trajectories(rng, signup_archetype, signup_dates, forward_p, backward_p, churn_p)
 
     t_gen_start = time.perf_counter()
     rentals, deposits, account_auto_reload = _generate_rentals_and_deposits(rng, accounts, trajectories, machines, templates)
@@ -382,7 +402,7 @@ def generate_dataset(n_accounts: int = N_ACCOUNTS, seed: int = RANDOM_SEED) -> d
         "behavior_generation_seconds": round(t_gen, 3),
         "total_pipeline_seconds": round(total_time, 3),
         "rentals_df_memory_mb": round(rentals.memory_usage(deep=True).sum() / 1e6, 3),
-        "db_file_size_mb": round(os.path.getsize(DB_PATH) / 1e6, 3),
+        "db_file_size_mb": round(os.path.getsize(db_path) / 1e6, 3),
     }
 
 

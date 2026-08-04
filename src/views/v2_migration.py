@@ -49,7 +49,12 @@ def render(db_path: str) -> None:
         "endpoints. Treat any A3/A4 cell as resting on that unverified field."
     )
 
-    result = compute_migration_matrix(db_path)
+    # Falls back to the config default when no V4 regeneration has set a
+    # churn window this session — see v4_assumptions.py for why this can't
+    # just read accounts.churn_date (that's evaluated as of today, not
+    # day-180-relative, a different question).
+    churn_days = st.session_state.get("last_churn_days")
+    result = compute_migration_matrix(db_path, churn_days=churn_days)
     n_eligible, n_total = result["n_eligible"], result["n_total"]
     pct_eligible = 100 * n_eligible / n_total if n_total else 0
     st.caption(

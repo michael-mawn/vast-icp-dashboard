@@ -43,20 +43,21 @@ def _held_classification(profile_rows: pd.DataFrame, as_of_date: np.datetime64) 
     return "A0_UNCLASSIFIED"
 
 
-def _churned_by(rentals: pd.DataFrame, reference_date: np.datetime64) -> bool:
-    """True if, as of reference_date, the account had gone
-    CHURN_DAYS_NO_ACTIVITY consecutive days with no rental (i.e. its last
-    rental ended more than that many days before reference_date, and no
-    rental starts between then and reference_date — guaranteed by using
-    the max end_ts among rentals starting on/before reference_date)."""
+def _churned_by(rentals: pd.DataFrame, reference_date: np.datetime64, churn_days: int) -> bool:
+    """True if, as of reference_date, the account had gone churn_days
+    consecutive days with no rental (i.e. its last rental ended more than
+    that many days before reference_date, and no rental starts between
+    then and reference_date — guaranteed by using the max end_ts among
+    rentals starting on/before reference_date)."""
     prior = rentals[rentals["start_ts"] <= reference_date]
     if prior.empty:
         return False  # never active yet is A0, not churned — a distinct concept
     last_end = prior["end_ts"].max()
-    return (reference_date - last_end) >= np.timedelta64(CHURN_DAYS_NO_ACTIVITY, "D")
+    return (reference_date - last_end) >= np.timedelta64(churn_days, "D")
 
 
-def compute_migration_matrix(db_path: str) -> dict:
+def compute_migration_matrix(db_path: str, churn_days: int | None = None) -> dict:
+    churn_days = churn_days if churn_days is not None else CHURN_DAYS_NO_ACTIVITY
     conn = sqlite3.connect(db_path)
     accounts = pd.read_sql("SELECT account_id, signup_date FROM accounts", conn)
     wp = pd.read_sql("SELECT account_id, week_start, classified_archetype FROM weekly_profile", conn)
@@ -89,7 +90,7 @@ def compute_migration_matrix(db_path: str) -> dict:
 
         state_30 = _held_classification(profile_rows, day30_date)
 
-        if _churned_by(acct_rentals, day180_date):
+        if _churned_by(acct_rentals, day180_date, churn_days):
             state_180 = "CHURNED"
         else:
             state_180 = _held_classification(profile_rows, day180_date)
@@ -113,18 +114,19 @@ def compute_migration_matrix(db_path: str) -> dict:
     }
 
 
-def compute_and_store_churn_dates(db_path: str) -> int:
+def compute_and_store_churn_dates(db_path: str, churn_days: int | None = None) -> int:
     """Populates accounts.churn_date (PRD §9, previously always NULL) using
-    the same CHURN_DAYS_NO_ACTIVITY rule, evaluated as of today rather than
-    a per-account day180 — a separate concern from the matrix's terminal
+    the same churn-window rule, evaluated as of today rather than a
+    per-account day180 — a separate concern from the matrix's terminal
     column, which needs churn status AT day180, not today."""
+    churn_days = churn_days if churn_days is not None else CHURN_DAYS_NO_ACTIVITY
     conn = sqlite3.connect(db_path)
     rentals = pd.read_sql("SELECT account_id, end_ts FROM rentals", conn)
     rentals["end_ts"] = pd.to_datetime(rentals["end_ts"], format="ISO8601")
     today = np.datetime64(dt.date.today())
 
     last_end = rentals.groupby("account_id")["end_ts"].max()
-    churned = last_end[(today - last_end.values.astype("datetime64[D]")) >= np.timedelta64(CHURN_DAYS_NO_ACTIVITY, "D")]
+    churned = last_end[(today - last_end.values.astype("datetime64[D]")) >= np.timedelta64(churn_days, "D")]
 
     conn.executemany(
         "UPDATE accounts SET churn_date = ? WHERE account_id = ?",
