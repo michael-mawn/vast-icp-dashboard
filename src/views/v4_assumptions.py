@@ -36,7 +36,7 @@ def render(db_path: str) -> None:
 
     st.markdown("**Archetype mix at signup** — what share of new accounts start as each workload type. "
                  "*What would settle this: actual signup-time behavior from real accounts, not survey or "
-                 "firmographic data (§4 — archetype is inferred from platform activity, not who the customer is).*")
+                 "firmographic data — archetype is inferred from platform activity, not who the customer is.*")
     mix_cols = st.columns(4)
     raw_mix = {}
     for col, (key, label) in zip(mix_cols, ARCHETYPE_LABELS.items()):
@@ -103,7 +103,7 @@ def render(db_path: str) -> None:
                  "reliable read.")
 
     st.divider()
-    st.markdown("**Deferred from this build, listed as next rather than omitted (PRD §6):**")
+    st.markdown("**Deferred from this build, listed as next rather than omitted:**")
     st.markdown(
         "- Expansion / net revenue retention by cohort\n"
         "- Early-signature analysis (what an eventual A3/A4 account's first 14 days look like)\n"
@@ -117,7 +117,7 @@ def render(db_path: str) -> None:
     )
 
     st.divider()
-    st.markdown("**Data availability on real Vast data (PRD §7)** — every number in this dashboard "
+    st.markdown("**Data availability on real Vast data** — every number in this dashboard "
                 "traces to a field below or to a generator assumption above. This list is the first "
                 "set of questions to ask on day one with real data access, not a caveat to bury.")
 

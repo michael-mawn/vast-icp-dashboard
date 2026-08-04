@@ -56,8 +56,8 @@ def render(db_path: str) -> None:
         "finding about how often accounts actually graduate."
     )
     st.caption(
-        "⚠️ A3 and A4 both depend partly on `launch_method` (console vs programmatic), which PRD "
-        "§7 flags as **unconfirmed whether it's distinguishable server-side** on Vast's real API — "
+        "⚠️ A3 and A4 both depend partly on `launch_method` (console vs programmatic), which "
+        "**hasn't been confirmed as distinguishable server-side** on Vast's real API — "
         "the console, CLI, and SDK all call the same REST endpoints. Treat any A3/A4 figure below "
         "as resting on that unverified field."
     )

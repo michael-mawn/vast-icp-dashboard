@@ -49,7 +49,7 @@ def render(db_path: str) -> None:
     st.subheader("V1 — Who are we actually serving, in terms of workload rather than firmographics?")
     st.caption(
         "🔬 Synthetic data. Accounts grouped by their most recent classified archetype "
-        "(not ground truth — the classifier never sees it). Compare the two bars per "
+        "(based on behavior, not how the account was originally labeled). Compare the two bars per "
         "category; this chart does not say which gap is good or bad."
     )
 
