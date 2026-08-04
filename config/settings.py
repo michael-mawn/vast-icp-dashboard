@@ -29,5 +29,9 @@ A0_MIN_GPU_HOURS = 10.0
 
 # A3 fan-out cap: A3 is defined by 5-50 concurrent instances (PRD §4), which
 # is the actual row-count driver at 3,000 accounts, not account count itself.
-# Measured and set from the S2 benchmark; placeholder until then.
-A3_MAX_RENTALS_PER_ACCOUNT = None  # set in S2 after benchmarking
+# Set from the S2 benchmark: A1 (concurrency=1) averaged ~33 rentals/account/
+# year at ~150 bytes/row. 300/account (~9x A1) keeps total rows across a
+# plausible archetype mix well inside a ~1.3M-row / ~200MB budget, leaving
+# headroom in the 1GB Streamlit Cloud ceiling for app + pandas + plotly
+# overhead across concurrent viewers.
+A3_MAX_RENTALS_PER_ACCOUNT = 300
