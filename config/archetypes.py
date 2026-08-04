@@ -41,10 +41,30 @@ MIN_FIT_FRACTION = 0.5
 # Default criterion weight. Uniform until S4 review.
 DEFAULT_WEIGHT = 1.0
 
-# A0 floor (also reused as the ratio-feature denominator guard)
+# A0 floor: minimum activity to be classified at all (vs A0).
 A0_FLOOR = {
     "min_rentals": A0_MIN_RENTALS,
     "min_gpu_hours": A0_MIN_GPU_HOURS,
+}
+
+# Separate, higher floor before any RATIO feature is trusted as evidence.
+# Caught post-S10: A0_MIN_RENTALS was lowered to 2 (see settings.py) so a
+# single/double-session Researcher could still classify off non-ratio
+# signals. But at exactly 2 rentals, interruptible_share (etc.) can only be
+# 0%, 50%, or 100% — reusing the SAME floor for "classify at all" and "trust
+# this ratio" meant a 2-rental account landing on two verified hosts read as
+# a clean 100% verified-host signal, exactly the false-confidence failure
+# the floor exists to prevent. Below this threshold, ratio criteria are
+# excluded from scoring entirely (see src/classify.py) rather than counted
+# at low-denominator, high-noise values — classification then rests on
+# gpu_class, session length, concurrency, and template alone.
+MIN_RENTALS_FOR_RATIO_TRUST = 5
+RATIO_FEATURES = {
+    "interruptible_share",
+    "on_demand_or_reserved_share",
+    "verified_host_share",
+    "console_launch_share",
+    "restart_after_interruption_rate",
 }
 
 # Each criterion: (feature_name, comparator, threshold_value, weight)

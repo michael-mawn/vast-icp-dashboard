@@ -12,7 +12,7 @@ import sqlite3
 
 import pandas as pd
 
-from config.archetypes import ARCHETYPES, MIN_FIT_FRACTION, A0_FLOOR
+from config.archetypes import ARCHETYPES, MIN_FIT_FRACTION, A0_FLOOR, MIN_RENTALS_FOR_RATIO_TRUST, RATIO_FEATURES
 from src.schema import DB_PATH
 
 COMPARATORS = {
@@ -25,7 +25,16 @@ COMPARATORS = {
     "between": lambda v, t: v is not None and t[0] <= v <= t[1],
 }
 
-_MAX_SCORE = {key: sum(w for *_, w in spec["criteria"]) for key, spec in ARCHETYPES.items()}
+# Two max-score tables per archetype: full (all criteria) and ratio-excluded
+# (denominator recomputed so the fit fraction stays a fair 0-1 scale when
+# ratio criteria are dropped below MIN_RENTALS_FOR_RATIO_TRUST — see
+# config/archetypes.py for why they're excluded rather than evaluated at a
+# low, noisy denominator).
+_MAX_SCORE_FULL = {key: sum(w for *_, w in spec["criteria"]) for key, spec in ARCHETYPES.items()}
+_MAX_SCORE_NO_RATIO = {
+    key: sum(w for feature_name, *_, w in spec["criteria"] if feature_name not in RATIO_FEATURES)
+    for key, spec in ARCHETYPES.items()
+}
 
 
 def _feature_value(row: pd.Series, feature_name: str):
@@ -37,15 +46,24 @@ def _feature_value(row: pd.Series, feature_name: str):
 
 
 def score_row(row: pd.Series) -> dict:
-    """Fit fraction (0-1) per archetype for one weekly_profile row."""
+    """Fit fraction (0-1) per archetype for one weekly_profile row. Ratio
+    criteria (interruptible_share etc.) are excluded below
+    MIN_RENTALS_FOR_RATIO_TRUST rentals rather than evaluated at a
+    low-denominator, high-noise value."""
+    trust_ratios = row["rental_count"] >= MIN_RENTALS_FOR_RATIO_TRUST
+    max_score = _MAX_SCORE_FULL if trust_ratios else _MAX_SCORE_NO_RATIO
+
     scores = {}
     for key, spec in ARCHETYPES.items():
         total = 0.0
         for feature_name, comparator, threshold, weight in spec["criteria"]:
+            if not trust_ratios and feature_name in RATIO_FEATURES:
+                continue
             value = _feature_value(row, feature_name)
             if COMPARATORS[comparator](value, threshold):
                 total += weight
-        scores[key] = total / _MAX_SCORE[key]
+        denom = max_score[key]
+        scores[key] = (total / denom) if denom > 0 else 0.0
     return scores
 
 

@@ -5,6 +5,10 @@ bootstrap and V4's "Regenerate" button (S8) — same code path either way,
 so a slider-triggered run and app startup can never silently diverge.
 """
 
+# See src/generate.py for why this is required: `X | None` annotations
+# below raise TypeError at import time on Python <3.10 without it.
+from __future__ import annotations
+
 import os
 import time
 

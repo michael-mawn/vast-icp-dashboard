@@ -16,6 +16,10 @@ with no rental, evaluated as of a given reference date (day 180 for the
 matrix's terminal column; "today" for the persisted accounts.churn_date).
 """
 
+# See src/generate.py for why this is required: `X | None` annotations
+# below raise TypeError at import time on Python <3.10 without it.
+from __future__ import annotations
+
 import datetime as dt
 import sqlite3
 

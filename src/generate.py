@@ -25,6 +25,15 @@ classification a real exercise without building full continuous latent
 profiles (scope cut from the original spec-review proposal).
 """
 
+# Defers annotation evaluation to strings — without this, `dict | None`-style
+# hints below raise TypeError at import time on Python <3.10 (the `|` union
+# operator on types was added in PEP 604 / 3.10). This broke the live
+# Streamlit Cloud deploy: runtime.txt requests 3.12, but Cloud's actual
+# interpreter didn't honor it. Caught by comparing the deploy traceback
+# against a runtime-version hypothesis, since a from-scratch local clone
+# under the intended 3.12 never surfaced this.
+from __future__ import annotations
+
 import datetime as dt
 import time
 
