@@ -13,6 +13,7 @@ Never drop and regenerate the database to accommodate a schema change."
 Each schema version is a numbered, additive migration below.
 """
 
+import os
 import sqlite3
 
 DB_PATH = "data/marketplace.db"
@@ -119,6 +120,14 @@ def _current_version(conn: sqlite3.Connection) -> int:
 
 def migrate(db_path: str = DB_PATH) -> int:
     """Apply any migrations not yet applied. Returns the resulting schema version."""
+    # Git doesn't track empty directories, so a fresh clone (Streamlit Cloud,
+    # every deploy) has no data/ dir at all — sqlite3.connect() fails outright
+    # without this. Caught by a from-scratch clean-clone test at S10; every
+    # earlier local test had data/ already on disk from S0's initial mkdir,
+    # so this never surfaced until testing the exact deployment path.
+    parent = os.path.dirname(db_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     conn = sqlite3.connect(db_path)
     try:
         current = _current_version(conn)
