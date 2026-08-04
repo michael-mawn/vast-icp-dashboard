@@ -13,7 +13,8 @@ from config.generator import (
     ARCHETYPE_MIX_AT_SIGNUP, MIGRATION_FORWARD_MONTHLY, MIGRATION_BACKWARD_MONTHLY,
     CHURN_PROBABILITY_MONTHLY,
 )
-from config.settings import CHURN_DAYS_NO_ACTIVITY
+from config.archetypes import MIN_RENTALS_FOR_RATIO_TRUST
+from config.settings import A0_MIN_GPU_HOURS, A0_MIN_RENTALS, CHURN_DAYS_NO_ACTIVITY
 from src.pipeline import rebuild
 
 ARCHETYPE_LABELS = {
@@ -92,6 +93,14 @@ def render(db_path: str) -> None:
 
     if "last_regen_message" in st.session_state:
         st.success(st.session_state["last_regen_message"] + " Revisit Base composition or Migration to see the new data.")
+
+    st.markdown("**A0 (Unclassified) floor** — an account needs at least "
+                 f"**{A0_MIN_RENTALS} rentals and {A0_MIN_GPU_HOURS:.0f} GPU-hours** in the trailing 30 days "
+                 "to be classified at all; below that, there just isn't enough activity to tell workload types "
+                 f"apart, and it's reported as A0 rather than guessed. A higher bar — **{MIN_RENTALS_FOR_RATIO_TRUST} "
+                 "rentals** — applies before ratio-based signals (like % of time on interruptible pricing) are "
+                 "trusted, since on 2-3 rentals a ratio can only land on a few possible values and isn't a "
+                 "reliable read.")
 
     st.divider()
     st.markdown("**Deferred from this build, listed as next rather than omitted (PRD §6):**")
