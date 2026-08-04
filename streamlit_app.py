@@ -5,8 +5,9 @@ import streamlit as st
 from src.classify import classify_all
 from src.features import write_weekly_profiles
 from src.generate import generate_dataset
+from src.migrate_analysis import compute_and_store_churn_dates
 from src.schema import DB_PATH, migrate
-from src.views import v1_composition
+from src.views import v1_composition, v2_migration
 
 st.set_page_config(page_title="Vast.ai Workload Archetype & Migration Dashboard", layout="wide")
 
@@ -20,6 +21,7 @@ def ensure_data() -> None:
         generate_dataset()
         write_weekly_profiles()
         classify_all()
+        compute_and_store_churn_dates(DB_PATH)
 
 
 ensure_data()
@@ -35,7 +37,7 @@ with tab_v1:
 
 with tab_v2:
     st.caption("🔬 Runs entirely on synthetic data — not a findings document about Vast's real business.")
-    st.info("V2 (migration matrix) lands in S6.")
+    v2_migration.render(DB_PATH)
 
 with tab_v4:
     st.caption("🔬 Runs entirely on synthetic data — not a findings document about Vast's real business.")
