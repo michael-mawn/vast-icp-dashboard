@@ -294,13 +294,17 @@ def _generate_rentals_and_deposits(
                     end_reason[interrupted] = rng.choice(["host_reclaim", "machine_offline"], size=interrupted.sum())
 
                 total_cost = np.round(duration_hours * sel_prices, 2)
+                # Burst-level serverless flag (PRD §4 A4 OR-criterion): satisfies
+                # classification independently of session length for accounts
+                # using serverless endpoints rather than long-lived instances.
+                is_serverless = int(rng.random() < SERVERLESS_PRESENT_P.get(true_archetype, 0.0))
 
                 for i in range(concurrency):
                     rental_rows.append((
                         int(account_id), int(sel_machine_ids[i]), int(sel_template_ids[i]),
                         pd.Timestamp(start_ts[i]).isoformat(), pd.Timestamp(end_ts[i]).isoformat(),
                         str(instance_type[i]), str(launch_method[i]), str(end_reason[i]),
-                        round(float(duration_hours[i]), 3), float(total_cost[i]),
+                        round(float(duration_hours[i]), 3), float(total_cost[i]), is_serverless,
                     ))
                     if interrupted[i] and rng.random() < profile["restart_after_interruption_p"]:
                         gap_h = float(rng.uniform(0.05, 0.5))
@@ -311,7 +315,7 @@ def _generate_rentals_and_deposits(
                             int(account_id), int(sel_machine_ids[i]), int(sel_template_ids[i]),
                             restart_start.isoformat(), restart_end.isoformat(),
                             str(instance_type[i]), str(launch_method[i]), "user",
-                            round(restart_dur, 3), round(restart_dur * sel_prices[i], 2),
+                            round(restart_dur, 3), round(restart_dur * sel_prices[i], 2), is_serverless,
                         ))
 
             if profile["auto_reload_p"] > 0 and rng.random() < profile["auto_reload_p"] * 0.3:
@@ -326,7 +330,7 @@ def _generate_rentals_and_deposits(
 
     rentals = pd.DataFrame(rental_rows, columns=[
         "account_id", "machine_id", "template_id", "start_ts", "end_ts",
-        "instance_type", "launch_method", "end_reason", "gpu_hours", "total_cost",
+        "instance_type", "launch_method", "end_reason", "gpu_hours", "total_cost", "is_serverless",
     ])
     rentals.insert(0, "rental_id", range(1, len(rentals) + 1))
 

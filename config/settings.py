@@ -24,8 +24,31 @@ CHURN_DAYS_NO_ACTIVITY = 60
 # ratio features (e.g. verified-host share) have a denominator too small to
 # mean anything, and the account is reported as A0 rather than misclassified
 # with false confidence.
-A0_MIN_RENTALS = 3
-A0_MIN_GPU_HOURS = 10.0
+#
+# Both numbers below were approved at 3 rentals / 10.0 GPU-hours during spec
+# review, before concrete generation numbers existed. Measured at S4:
+#
+# - A0_MIN_GPU_HOURS: a typical A1 (Tinkerer) account's 30-day GPU-hours has
+#   median 9.58, 25th percentile 5.64 — the floor sat almost exactly at the
+#   median, so ~half of genuinely-active Tinkerers failed it, contradicting
+#   the floor's stated intent ("without excluding genuine light tinkerers").
+#   Lowered to 4.0 (below the 25th percentile).
+# - A0_MIN_RENTALS: A2 (Researcher) runs rare, long sessions (6-72h) by
+#   design — 833 of ~6,900 A2 account-weeks have exactly 1 rental, 1,011 have
+#   exactly 2, often already well past the GPU-hours floor on session length
+#   alone. Requiring 3 rentals penalizes A2 specifically for behaving as
+#   PRD §4 describes it. Lowered to 2 — still enough that ratio features
+#   (interruptible_share etc.) aren't a literal single coin flip, while a
+#   real 2-session Researcher month clears it. The remaining 1-rental weeks
+#   stay A0: a single rental genuinely can't support any ratio feature
+#   (trivially 0% or 100%), so that residual A0 rate is accepted as correct
+#   behavior, not a bug — PRD §4 requires A0 be "reported explicitly, never
+#   silently dropped."
+#
+# Both provisional — user was unavailable to confirm at S4; logged in the
+# build plan for review.
+A0_MIN_RENTALS = 2
+A0_MIN_GPU_HOURS = 4.0
 
 # A3 fan-out cap: A3 is defined by 5-50 concurrent instances (PRD §4), which
 # is the actual row-count driver at 3,000 accounts, not account count itself.

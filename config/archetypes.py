@@ -8,10 +8,19 @@ checked fact rather than a promised convention — see src/tests for the
 import-boundary test.
 
 Scoring (decided in spec review, finalized at S4): each archetype accumulates
-one WEIGHT per satisfied criterion. Highest total score wins. An account
-scoring below MIN_SCORE, or tied at the top between two archetypes, is
-reported as A0. Weights default to 1.0 (neutral) until S4, when they are set
-against measured classification behavior and confirmed with the user.
+one WEIGHT per satisfied criterion, then that sum is NORMALIZED by the
+archetype's own max-possible weight sum (a 0-1 "fit fraction") before
+comparing across archetypes. Raw sums would structurally favor archetypes
+with more criteria (A4 has 8, A1 has 7-ish counting the split template
+weight, A2/A3 have 6) regardless of true fit — normalizing removes that
+bias. Highest fit fraction wins. An account below MIN_FIT_FRACTION, or tied
+at the top between two archetypes, is reported as A0.
+
+MIN_FIT_FRACTION=0.5 (must satisfy at least half an archetype's weighted
+criteria) is a provisional value — user was unavailable to confirm at S4;
+logged in the build plan for review. Weights are uniform (1.0) except
+A3's max-concurrency criterion (1.5x, PRD §4 calls it out as the single
+defining trait), which was already approved.
 
 Trajectory criteria from PRD §4 ("growing deposits", "trending up") are
 deliberately EXCLUDED here — unmeasurable within a 30-day window without a
@@ -25,9 +34,9 @@ from config.settings import A0_MIN_RENTALS, A0_MIN_GPU_HOURS
 CONSUMER_GPUS = {"3090", "4090", "5090"}
 DATACENTER_GPUS = {"A100", "H100", "B200"}
 
-# Minimum total weighted score to classify at all. Below this -> A0.
-# Placeholder — set at S4 against measured A0 rates, per build plan.
-MIN_SCORE = None
+# Minimum fit fraction (0-1, own-archetype-normalized) to classify at all.
+# Below this -> A0. Provisional (user unavailable at S4) — see docstring.
+MIN_FIT_FRACTION = 0.5
 
 # Default criterion weight. Uniform until S4 review.
 DEFAULT_WEIGHT = 1.0

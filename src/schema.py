@@ -98,6 +98,12 @@ MIGRATIONS = [
 
     CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
     """,
+    # v2: A4's "median session > 168h, OR serverless present" criterion
+    # (PRD §4) needs a raw serverless signal to be measurable; additive,
+    # existing rows default to 0 rather than losing data.
+    """
+    ALTER TABLE rentals ADD COLUMN is_serverless INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 
