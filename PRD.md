@@ -119,31 +119,34 @@ Archetype is computed from a **trailing 30-day behavior window**, recomputed wee
 
 An account has **migrated** when its classification changes and the new classification **holds for two or more consecutive weeks**. Single-week flips are noise and are not counted.
 
-The migration matrix is archetype at day 30 versus archetype at day 180, with churn as a terminal column.
+The migration matrix is archetype at day 30 versus archetype at day 180, with churn as a terminal column. **Resolved during the build** (this paragraph originally read as a second, competing definition of migration — a snapshot comparison with no role for the two-week hold rule above): each endpoint of the day-30/day-180 comparison uses the classification that has *held* for two or more consecutive weekly recomputations as of that date, not that week's raw label. This makes the hold rule and the snapshot comparison one mechanism instead of two. It under-detects relative to a full event log — an account that goes A1→A3→A1 within the window reads as no migration — which is the accepted tradeoff for a legible two-point comparison. See `src/migrate_analysis.py`.
 
 **Note on interpretation:** the matrix answers "what workload types move toward production usage." It does not answer "what industry moves toward production usage." Industry is not observable from marketplace data. This limitation is stated in the UI, not hidden.
+
+**Note on what this matrix demonstrates:** the migration rate itself is a generator input (`config/generator.py`), not something measured from real behavior — this dataset is synthetic. The matrix demonstrates the *mechanism* that would measure real migration once pointed at real data: cohort eligibility, the hold rule, churn as a terminal state. It is not a finding about how often accounts actually graduate. Stated in the UI (V2), not hidden.
 
 ---
 
 ## 6. Views (v1 scope)
 
 **V1. Base composition** — *Who are we serving, by workload?*
-Accounts by archetype alongside revenue by archetype. The gap between the two distributions is the thing to look at.
+Accounts by archetype alongside **lifetime rental spend** by archetype (labeled that way, not "revenue" — unambiguous that it's marketplace volume, not Vast's take). The gap between the two distributions is the thing to look at, but no UI copy says which gap is good or bad.
 
 **V2. Migration matrix** — *Do accounts move from experimental to production usage?*
 Day 30 archetype vs day 180 archetype. Heatmap, churn as terminal state.
 
-**V3. Classifier accuracy** — *Is the segmentation trustworthy?*
-Confusion matrix of classified archetype against ground-truth label, with per-archetype precision and recall. Small view, disproportionate credibility.
+**V3. Classifier accuracy — CUT.** *Is the segmentation trustworthy?*
+Originally scoped as a confusion matrix of classified archetype against ground-truth label. Cut during the build for a one-day, single-reader scope (see build plan). The generator still creates realistic overlap between archetypes so classification is a real exercise, not a formality — this dataset just never shows how well the classifier recovers the labels it was built from. On real data, that check would need to be rebuilt before trusting the classifier's output. Moved to the deferred list below rather than silently dropped.
 
 **V4. Assumptions** — *What would have to be true for this to look different?*
-Every generator parameter as a slider, each with plain-language description of what it represents and what evidence would settle it in reality.
+Scope cut from "every generator parameter" to three: archetype mix at signup, migration dynamics, and the churn window (see build plan). Each carries the plain-language description and real-world evidence question this section originally specified.
 
 ### Deferred, and named as deferred in the UI
 
 - Expansion / net revenue retention by cohort
 - Early-signature analysis (what the first 14 days of an eventual A3 or A4 account look like)
 - Reliability-tax analysis (retention and spend delta following a host-side failure)
+- Classifier accuracy vs. ground truth (originally scoped as V3 above)
 
 These are listed in-product as "next," not omitted silently.
 
@@ -168,7 +171,7 @@ Whether launch method is distinguishable server-side. The console, CLI, and SDK 
 
 ## 8. Synthetic data generator
 
-Ground-truth archetype labels are assigned **first**. Behavior is generated **from** those labels. The classifier then **rediscovers** them independently, and V3 reports its accuracy.
+Ground-truth archetype labels are assigned **first**. Behavior is generated **from** those labels, with deliberate overlap at the archetype boundaries so classification is a real exercise rather than reading back stamped values. The classifier then **rediscovers** them independently. (V3, which would have reported that accuracy, is cut — see §6.)
 
 Ground-truth labels live in their own table and are never read by the classifier at inference time. This structure is not optional — it is what makes the classifier's quality measurable rather than assumed.
 

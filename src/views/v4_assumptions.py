@@ -106,3 +106,22 @@ def render(db_path: str) -> None:
         "built from. On real data, that check would need to be rebuilt before trusting the "
         "classifier's output."
     )
+
+    st.divider()
+    st.markdown("**Data availability on real Vast data (PRD §7)** — every number in this dashboard "
+                "traces to a field below or to a generator assumption above. This list is the first "
+                "set of questions to ask on day one with real data access, not a caveat to bury.")
+
+    st.markdown("✅ **Confirmed from Vast's public API documentation:** machine_id, Docker image, "
+                "template id/hash/name, instance start and end timestamps, duration, instance state, "
+                "runtype, GPU model and count, host reliability score, verified status, geolocation, "
+                "offer pricing. Documented endpoints exist for billing, accounts, and serverless.")
+    st.markdown("🟡 **Assumed, likely available, unverified:** granular end-reason for a rental "
+                "(user-destroyed vs outbid vs host reclaim vs container setup failure). Deposit "
+                "history and auto-reload flag.")
+    st.markdown("🔴 **Requires confirmation from Vast:** whether launch method (console vs "
+                "programmatic) is distinguishable server-side. The console, CLI, and SDK all call "
+                "the same REST API, so separating them requires a logged client identifier — without "
+                "one, only weaker proxies exist (SSH key at creation, tightly sequential create "
+                "calls, template reuse). **A3 and A4's classification both partly depend on this "
+                "field** (see Migration tab).")
